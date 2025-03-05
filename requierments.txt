@@ -2,6 +2,5 @@ requests
 socket
 platform
 google-api-python-client
-google
 pandas
 io
