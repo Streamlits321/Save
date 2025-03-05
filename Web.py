@@ -1,25 +1,19 @@
 import streamlit as st
 import requests
-import socket
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
 
-# Function to get local IP of the server (machine where Streamlit app is running)
-def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0)
-    try:
-        # Doesn't even have to be reachable
-        s.connect(('10.254.254.254', 1))
-        local_ip = s.getsockname()[0]
-    except Exception:
-        local_ip = '127.0.0.1'  # Default to localhost
-    finally:
-        s.close()
-    return local_ip
+# Function to get public IP using ipinfo.io API
+def get_user_ip():
+    response = requests.get('https://ipinfo.io/json')
+    if response.status_code == 200:
+        data = response.json()
+        return data.get('ip')
+    else:
+        return None
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -69,15 +63,10 @@ pdf_display = f"""
 button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
-        # Get the user's real IP from ipify API
-        ip_response = requests.get("https://api.ipify.org?format=json")
-        if ip_response.status_code == 200:
-            real_ip = ip_response.json().get("ip")
-            st.write(f"Fetched Public IP: {real_ip}")
-
-            # Get the local IP of the server (machine where the app is hosted)
-            local_ip = get_local_ip()
-            st.write(f"Local IP of Server: {local_ip}")
+        # Get the user's public IP from ipinfo.io API
+        user_ip = get_user_ip()
+        if user_ip:
+            st.write(f"Fetched Public IP: {user_ip}")
 
             # Set up Google Drive API integration
             SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -124,8 +113,11 @@ if button:
                     media = MediaFileUpload("new_file.xlsx", resumable=True)
                     service.files().create(body=file_metadata, media_body=media, fields="id").execute()
 
-            new_data = {"Public IP": real_ip, "Server Local IP": local_ip}
+            # New data to append (public IP)
+            new_data = {"Public IP": user_ip}
             append_and_upload(new_data)
+
+            # Display the PDF
             st.markdown(pdf_display, unsafe_allow_html=True)
         else:
-            st.error("Failed to fetch IP address")
+            st.error("Failed to fetch the IP address from ipinfo.io.")
