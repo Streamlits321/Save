@@ -1,7 +1,5 @@
 import streamlit as st
 import requests
-import socket
-import platform
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
@@ -9,6 +7,7 @@ import pandas as pd
 import io
 
 st.set_page_config(page_title="My App")
+
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -25,8 +24,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Function to get the user's public IP
+def get_user_ip():
+    public_ip = requests.get("https://api64.ipify.org").text  # Fetching the public IP via ipify
+    return public_ip
 
+# Use session state to store the user's IP
+if 'user_ip' not in st.session_state:
+    st.session_state['user_ip'] = get_user_ip()
 
+# Show the user's IP in the app
+st.markdown(f"User's Public IP Address: {st.session_state['user_ip']}")
+
+# PDF URL to display
 pdf_url = "https://drive.google.com/file/d/1sBPt9-h33f0u1QzyZ5bCt1O8cVqpxiYV/preview"
 
 # JavaScript to block interactions and remove UI elements
@@ -57,48 +67,25 @@ pdf_display = f"""
     style="border: none;" sandbox="allow-scripts allow-same-origin"></iframe>
     {hide_js}
 """
-button=st.button("Preview")
+
+button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
-        # JavaScript to fetch the user's public IP and pass it to Streamlit
-        get_user_ip_js = """
-            <script>
-                fetch('https://api64.ipify.org?format=json')
-                    .then(response => response.json())
-                    .then(data => {
-                        // Send the IP address to Streamlit via the window function
-                        window.parent.postMessage({type: 'user-ip', ip: data.ip}, '*');
-                    });
-            </script>
-        """
-
-        # Embed the JS code to get the user's IP address
-        # Define a placeholder for the user's IP
-        def get_user_ip():
-            public_ip = requests.get("https://api64.ipify.org").text
-            return public_ip
-
-        # Use session state to store the user's IP
-        if 'user_ip' not in st.session_state:
-            st.session_state['user_ip'] = get_user_ip()
-
-
-
         SCOPES = ['https://www.googleapis.com/auth/drive']
         PARENT_ID = "1tPWd3s9pdhb_gC-9rTv31IzvXSEvuWCT"
 
         def authenticate():
-            creds = creds = service_account.Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=SCOPES)
+            creds = service_account.Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=SCOPES)
             return creds
 
-        # 🔹 Find a file in Google Drive by name
+        # Find a file in Google Drive by name
         def find_file(service, file_name, parent_id):
             query = f"'{parent_id}' in parents and name = '{file_name}' and trashed = false"
             results = service.files().list(q=query, fields="files(id, name)").execute()
             files = results.get('files', [])
             return files
 
-        # 🔹 Download an existing file from Google Drive
+        # Download an existing file from Google Drive
         def download_file(service, file_id):
             request = service.files().get_media(fileId=file_id)
             file_stream = io.BytesIO()
@@ -109,7 +96,7 @@ if button:
             file_stream.seek(0)
             return file_stream
 
-        # 🔹 Append new data and upload the updated file
+        # Append new data and upload the updated file
         def append_and_upload(new_data, file_name="IP.xlsx"):
             creds = authenticate()
             service = build("drive", "v3", credentials=creds)
@@ -118,7 +105,7 @@ if button:
             existing_files = find_file(service, file_name, PARENT_ID)
 
             if existing_files:
-                # ✅ File exists: Download, update, and re-upload
+                # File exists: Download, update, and re-upload
                 file_id = existing_files[0]["id"]
                 file_stream = download_file(service, file_id)
 
@@ -137,7 +124,7 @@ if button:
                 service.files().update(fileId=file_id, media_body=media).execute()
             
             else:
-                # 🚀 File doesn't exist: Create new file and upload
+                # File doesn't exist: Create new file and upload
                 new_df = pd.DataFrame([new_data])
                 new_df.to_excel("new_file.xlsx", index=False)
 
@@ -145,7 +132,7 @@ if button:
                 media = MediaFileUpload("new_file.xlsx", resumable=True)
                 service.files().create(body=file_metadata, media_body=media, fields="id").execute()
 
-        # 🔹 Example Usage
+        # Example Usage
         new_data = {
             "IP": st.session_state['user_ip'],
         }
