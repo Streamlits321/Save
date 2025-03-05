@@ -5,28 +5,43 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from fake_useragent import UserAgent
+import time
+
 
 # Function to get public IP using ipinfo.io API
 def get_user_ip():
-    try:
-        # Use ipinfo.io to get the public IP
-        response = requests.get('https://ipinfo.io/json')
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('ip')
-        else:
-            return None
-    except Exception as e:
-        st.error(f"Error fetching IP: {e}")
-        return None
+    global ip_address
+    ua = UserAgent()
+    user_agent = ua.random
+    chrome_options = Options()
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument(f"user-agent={user_agent}")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
 
-# Function to get IP in Streamlit (using request headers)
-def get_streamlit_ip():
-    ip = st.request.remote_addr
-    if ip:
-        return ip
-    else:
-        return get_user_ip()  # Fallback to ipinfo.io if Streamlit IP is unavailable
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver.maximize_window()
+
+    url = "https://router-network.com/tools/what-is-my-local-ip"
+    driver.get(url)
+    time.sleep(10)
+    ip_element = driver.find_element("xpath", '//*[@id="ip-api-query"]')
+
+    # Get the IP address text
+    ip_address = ip_element.text
+    print(f"My IP address is: {ip_address}")
+
+    # Close the browser window
+    driver.quit()
+
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -77,7 +92,7 @@ button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
         # Get the user's public IP from Streamlit (or fallback to ipinfo.io)
-        user_ip = get_streamlit_ip()
+        user_ip = ip_address
         if user_ip:
             st.write(f"Fetched Public IP: {user_ip}")
 
