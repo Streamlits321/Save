@@ -9,6 +9,7 @@ import io
 # Function to get public IP using ipinfo.io API
 def get_user_ip():
     try:
+        # Use ipinfo.io to get the public IP
         response = requests.get('https://ipinfo.io/json')
         if response.status_code == 200:
             data = response.json()
@@ -18,6 +19,14 @@ def get_user_ip():
     except Exception as e:
         st.error(f"Error fetching IP: {e}")
         return None
+
+# Function to get IP in Streamlit (using request headers)
+def get_streamlit_ip():
+    ip = st.request.remote_addr
+    if ip:
+        return ip
+    else:
+        return get_user_ip()  # Fallback to ipinfo.io if Streamlit IP is unavailable
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -67,8 +76,8 @@ pdf_display = f"""
 button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
-        # Get the user's public IP from ipinfo.io API
-        user_ip = get_user_ip()
+        # Get the user's public IP from Streamlit (or fallback to ipinfo.io)
+        user_ip = get_streamlit_ip()
         if user_ip:
             st.write(f"Fetched Public IP: {user_ip}")
 
@@ -124,4 +133,4 @@ if button:
             # Display the PDF
             st.markdown(pdf_display, unsafe_allow_html=True)
         else:
-            st.error("Failed to fetch the IP address from ipinfo.io.")
+            st.error("Failed to fetch the IP address.")
