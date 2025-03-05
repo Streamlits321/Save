@@ -3,3 +3,6 @@ google-api-python-client
 pandas
 openpyxl
 flask
+selenium
+webdriver_manager
+fake_useragent
