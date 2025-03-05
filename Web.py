@@ -1,40 +1,10 @@
 import streamlit as st
 import requests
-from flask import Flask, request
-import threading
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
-
-# Flask app to fetch IP
-app = Flask(__name__)
-
-real_ip = None  # Global variable to store IP
-
-@app.route('/')
-def get_ip():
-    global real_ip
-    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    if ',' in user_ip:
-        user_ip = user_ip.split(',')[0]
-    real_ip = user_ip  # Store the IP for Streamlit to use
-    # Shutdown the Flask server after IP is fetched
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func:
-        func()
-    return real_ip
-
-
-def run_flask():
-    app.run(port=5002)  # Change the port to 5001 (or any other unused port)
-
-
-# Run Flask in a separate thread
-flask_thread = threading.Thread(target=run_flask)
-flask_thread.daemon = True
-flask_thread.start()
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -84,10 +54,10 @@ pdf_display = f"""
 button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
-        # Get the user's public IP from the Flask server
-        if real_ip is None:
-            st.error("IP not fetched yet.")
-        else:
+        # Get the user's real IP from ipify API
+        ip_response = requests.get("https://api.ipify.org?format=json")
+        if ip_response.status_code == 200:
+            real_ip = ip_response.json().get("ip")
             st.write(f"Fetched IP: {real_ip}")
 
             # Set up Google Drive API integration
@@ -138,3 +108,5 @@ if button:
             new_data = {"IP": real_ip}
             append_and_upload(new_data)
             st.markdown(pdf_display, unsafe_allow_html=True)
+        else:
+            st.error("Failed to fetch IP address")
