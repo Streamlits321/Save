@@ -1,7 +1,8 @@
 requests
 socket
 platform
-googleapiclient
-google
+googleapiclient.discovery
+googleapiclient.http
+google.oauth2
 pandas
 io
