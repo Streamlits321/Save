@@ -20,10 +20,11 @@ def get_user_ip():
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument(f"user-agent={user_agent}")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--headless")  # Ensure headless mode
+    chrome_options.add_argument("--no-sandbox")  # Important for Docker and cloud environments
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Fixes some issues in cloud
 
+    # Specify path to chromedriver if needed or use ChromeDriverManager to manage it
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.maximize_window()
