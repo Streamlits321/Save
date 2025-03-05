@@ -1,5 +1,4 @@
 requests
-socket
 platform
 google-api-python-client
 pandas
