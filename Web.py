@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
@@ -15,7 +14,6 @@ import time
 
 # Function to get public IP using ipinfo.io API
 def get_user_ip():
-    global ip_address
     ua = UserAgent()
     user_agent = ua.random
     chrome_options = Options()
@@ -41,7 +39,7 @@ def get_user_ip():
 
     # Close the browser window
     driver.quit()
-
+    return ip_address
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -92,7 +90,7 @@ button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
         # Get the user's public IP from Streamlit (or fallback to ipinfo.io)
-        user_ip = ip_address
+        user_ip = get_user_ip()
         if user_ip:
             st.write(f"Fetched Public IP: {user_ip}")
 
