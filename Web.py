@@ -73,7 +73,7 @@ if button:
 
 
         SCOPES = ['https://www.googleapis.com/auth/drive']
-        SERVICE_ACCOUNT_FILE = 'configure.json'
+        SERVICE_ACCOUNT_FILE = st.secrets["google_service_account"]
         PARENT_ID = "1tPWd3s9pdhb_gC-9rTv31IzvXSEvuWCT"
 
         def authenticate():
