@@ -1,0 +1,7 @@
+requests
+socket
+platform
+googleapiclient
+google
+pandas
+io
