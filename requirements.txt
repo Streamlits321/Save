@@ -1,5 +1,4 @@
 requests
-platform
 google-api-python-client
 pandas
 io
