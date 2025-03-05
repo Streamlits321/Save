@@ -73,11 +73,10 @@ if button:
 
 
         SCOPES = ['https://www.googleapis.com/auth/drive']
-        SERVICE_ACCOUNT_FILE = st.secrets["google_service_account"]
         PARENT_ID = "1tPWd3s9pdhb_gC-9rTv31IzvXSEvuWCT"
 
         def authenticate():
-            creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+            creds = service_account.Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=SCOPES)
             return creds
 
         # 🔹 Find a file in Google Drive by name
