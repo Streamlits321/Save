@@ -8,11 +8,15 @@ import io
 
 # Function to get public IP using ipinfo.io API
 def get_user_ip():
-    response = requests.get('https://ipinfo.io/json')
-    if response.status_code == 200:
-        data = response.json()
-        return data.get('ip')
-    else:
+    try:
+        response = requests.get('https://ipinfo.io/json')
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('ip')
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Error fetching IP: {e}")
         return None
 
 # Streamlit app to display PDF and collect IP
