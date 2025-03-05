@@ -1,12 +1,24 @@
 import streamlit as st
-import requests
-import socket
 import platform
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
+from flask import Flask, request
+
+app = Flask(__name__)
+
+@app.route("/")
+def get_user_ip():
+    global user_ip
+    # Get the IP address from the headers, checking for proxy-forwarded addresses
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    return f"User's Public IP Address: {user_ip}"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
 
 st.set_page_config(page_title="My App")
 hide_st_style = """
@@ -60,16 +72,7 @@ pdf_display = f"""
 button=st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
-        def get_device_name():
-            try:
-                return socket.gethostname() or platform.node()
-            except Exception as e:
-                return f"Unknown Device ({e})"
 
-        device_name = get_device_name()
-        local_ip = socket.gethostbyname(socket.gethostname())
-
-        public_ip = requests.get("https://api64.ipify.org").text
 
 
         SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -135,9 +138,7 @@ if button:
 
         # 🔹 Example Usage
         new_data = {
-            "Device Name": device_name,
-            "Local IP": local_ip,
-            "Public IP": public_ip,
+                "IP":user_ip
         }
 
         append_and_upload(new_data)
