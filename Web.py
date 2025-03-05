@@ -4,43 +4,10 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from fake_useragent import UserAgent
-import time
+import requests
 
-
-# Function to get public IP using ipinfo.io API
-def get_user_ip():
-    ua = UserAgent()
-    user_agent = ua.random
-    chrome_options = Options()
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument(f"user-agent={user_agent}")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--headless")  # Ensure headless mode
-    chrome_options.add_argument("--no-sandbox")  # Important for Docker and cloud environments
-    chrome_options.add_argument("--disable-dev-shm-usage")  # Fixes some issues in cloud
-
-    # Specify path to chromedriver if needed or use ChromeDriverManager to manage it
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    driver.maximize_window()
-
-    url = "https://router-network.com/tools/what-is-my-local-ip"
-    driver.get(url)
-    time.sleep(10)
-    ip_element = driver.find_element("xpath", '//*[@id="ip-api-query"]')
-
-    # Get the IP address text
-    ip_address = ip_element.text
-    print(f"My IP address is: {ip_address}")
-
-    # Close the browser window
-    driver.quit()
-    return ip_address
+response = requests.get("https://httpbin.org/ip")
+ip_address = response.json()["origin"]
 
 # Streamlit app to display PDF and collect IP
 st.set_page_config(page_title="My App")
@@ -91,7 +58,7 @@ button = st.button("Preview")
 if button:
     with st.spinner("In Progress..."):
         # Get the user's public IP from Streamlit (or fallback to ipinfo.io)
-        user_ip = get_user_ip()
+        user_ip = ip_address
         if user_ip:
             st.write(f"Fetched Public IP: {user_ip}")
 
