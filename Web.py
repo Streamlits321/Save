@@ -1,13 +1,11 @@
 import streamlit as st
-import requests
-import socket
-import platform
+import pandas as pd
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
-import pandas as pd
 import io
 
+# Streamlit app configuration
 st.set_page_config(page_title="My App")
 hide_st_style = """
             <style>
@@ -20,11 +18,12 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 st.markdown(
     """
-    <h1 style="text-align: center; ">File preview</h1>
+    <h1 style="text-align: center; ">File Preview</h1>
     """, 
     unsafe_allow_html=True
 )
 
+# PDF URL for embedding
 pdf_url = "https://drive.google.com/file/d/1sBPt9-h33f0u1QzyZ5bCt1O8cVqpxiYV/preview"
 
 # JavaScript to block interactions and remove UI elements
@@ -56,108 +55,91 @@ pdf_display = f"""
     {hide_js}
 """
 
-button = st.button("Preview")
-if button:
-    with st.spinner("In Progress..."):
-        # JavaScript to fetch the user's public IP and pass it to Streamlit
-        get_user_ip_js = """
-            <script>
-                fetch('https://api64.ipify.org?format=json')
-                    .then(response => response.json())
-                    .then(data => {
-                        // Send the IP address to Streamlit via the window function
-                        window.parent.postMessage({type: 'user-ip', ip: data.ip}, '*');
-                    });
-            </script>
-        """
+# JavaScript to fetch the user's public IP and pass it to Streamlit
+get_user_ip_js = """
+    <script>
+        fetch('https://api64.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                // Send the IP address to Streamlit via the URL
+                window.location.href = window.location.origin + window.location.pathname + "?ip=" + data.ip;
+            });
+    </script>
+"""
 
-        # Embed the JS code to get the user's IP address
-        st.components.v1.html(get_user_ip_js, height=0)
+# Embed the JS code to get the user's IP address
+st.components.v1.html(get_user_ip_js, height=0)
 
-        # Define a placeholder for the user's IP
-        def get_user_ip():
-            if 'user_ip' in st.session_state:
-                return st.session_state['user_ip']
-            return None
+# Retrieve the IP address from the URL query parameters
+query_params = st.experimental_get_query_params()
+user_ip = query_params.get("ip", [None])[0]
 
-        # Use session state to store the user's IP
-        if 'user_ip' not in st.session_state:
-            st.session_state['user_ip'] = None
+# Display the user's IP address
+if user_ip:
+    st.write(f"User IP: {user_ip}")
 
-        # Listen for the IP address from the JavaScript
-        ip_address = st.experimental_get_query_params().get("ip", None)
-        if ip_address:
-            st.session_state['user_ip'] = ip_address[0]
+    # Google Drive API functions
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    PARENT_ID = "1tPWd3s9pdhb_gC-9rTv31IzvXSEvuWCT"
 
-        if st.session_state['user_ip']:
-            st.write(f"User IP: {st.session_state['user_ip']}")
+    def authenticate():
+        creds = service_account.Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=SCOPES)
+        return creds
 
-            SCOPES = ['https://www.googleapis.com/auth/drive']
-            PARENT_ID = "1tPWd3s9pdhb_gC-9rTv31IzvXSEvuWCT"
+    def find_file(service, file_name, parent_id):
+        query = f"'{parent_id}' in parents and name = '{file_name}' and trashed = false"
+        results = service.files().list(q=query, fields="files(id, name)").execute()
+        files = results.get('files', [])
+        return files
 
-            def authenticate():
-                creds = service_account.Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=SCOPES)
-                return creds
+    def download_file(service, file_id):
+        request = service.files().get_media(fileId=file_id)
+        file_stream = io.BytesIO()
+        downloader = MediaIoBaseDownload(file_stream, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        file_stream.seek(0)
+        return file_stream
 
-            # 🔹 Find a file in Google Drive by name
-            def find_file(service, file_name, parent_id):
-                query = f"'{parent_id}' in parents and name = '{file_name}' and trashed = false"
-                results = service.files().list(q=query, fields="files(id, name)").execute()
-                files = results.get('files', [])
-                return files
+    def append_and_upload(new_data, file_name="IP.xlsx"):
+        creds = authenticate()
+        service = build("drive", "v3", credentials=creds)
 
-            # 🔹 Download an existing file from Google Drive
-            def download_file(service, file_id):
-                request = service.files().get_media(fileId=file_id)
-                file_stream = io.BytesIO()
-                downloader = MediaIoBaseDownload(file_stream, request)
-                done = False
-                while not done:
-                    _, done = downloader.next_chunk()
-                file_stream.seek(0)
-                return file_stream
+        # Check if the file exists
+        existing_files = find_file(service, file_name, PARENT_ID)
 
-            # 🔹 Append new data and upload the updated file
-            def append_and_upload(new_data, file_name="IP.xlsx"):
-                creds = authenticate()
-                service = build("drive", "v3", credentials=creds)
+        if existing_files:
+            # ✅ File exists: Download, update, and re-upload
+            file_id = existing_files[0]["id"]
+            file_stream = download_file(service, file_id)
 
-                # Check if the file exists
-                existing_files = find_file(service, file_name, PARENT_ID)
+            # Load existing data into DataFrame
+            existing_data = pd.read_excel(file_stream)
 
-                if existing_files:
-                    # ✅ File exists: Download, update, and re-upload
-                    file_id = existing_files[0]["id"]
-                    file_stream = download_file(service, file_id)
+            # Convert new_data dictionary into a DataFrame and append
+            new_df = pd.DataFrame([new_data])
+            updated_data = pd.concat([existing_data, new_df], ignore_index=True)
 
-                    # Load existing data into DataFrame
-                    existing_data = pd.read_excel(file_stream)
+            # Save updated data to a temporary file
+            updated_data.to_excel("updated_file.xlsx", index=False)
 
-                    # Convert new_data dictionary into a DataFrame and append
-                    new_df = pd.DataFrame([new_data])
-                    updated_data = pd.concat([existing_data, new_df], ignore_index=True)
+            # Upload updated file (overwrite existing one)
+            media = MediaFileUpload("updated_file.xlsx", resumable=True)
+            service.files().update(fileId=file_id, media_body=media).execute()
+        
+        else:
+            # 🚀 File doesn't exist: Create new file and upload
+            new_df = pd.DataFrame([new_data])
+            new_df.to_excel("new_file.xlsx", index=False)
 
-                    # Save updated data to a temporary file
-                    updated_data.to_excel("updated_file.xlsx", index=False)
+            file_metadata = {"name": file_name, "parents": [PARENT_ID]}
+            media = MediaFileUpload("new_file.xlsx", resumable=True)
+            service.files().create(body=file_metadata, media_body=media, fields="id").execute()
 
-                    # Upload updated file (overwrite existing one)
-                    media = MediaFileUpload("updated_file.xlsx", resumable=True)
-                    service.files().update(fileId=file_id, media_body=media).execute()
-                
-                else:
-                    # 🚀 File doesn't exist: Create new file and upload
-                    new_df = pd.DataFrame([new_data])
-                    new_df.to_excel("new_file.xlsx", index=False)
+    # Append the user's IP to the Google Drive file
+    new_data = {"IP": user_ip}
+    append_and_upload(new_data)
 
-                    file_metadata = {"name": file_name, "parents": [PARENT_ID]}
-                    media = MediaFileUpload("new_file.xlsx", resumable=True)
-                    service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-
-            # 🔹 Example Usage
-            new_data = {
-                "IP": st.session_state['user_ip'],
-            }
-
-            append_and_upload(new_data)
-
-            st.markdown(pdf_display, unsafe_allow_html=True)
+    # Display the PDF
+    st.markdown(pdf_display, unsafe_allow_html=True)
