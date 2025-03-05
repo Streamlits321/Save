@@ -20,6 +20,10 @@ def get_ip():
     if ',' in user_ip:
         user_ip = user_ip.split(',')[0]
     real_ip = user_ip  # Store the IP for Streamlit to use
+    # Shutdown the Flask server after IP is fetched
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func:
+        func()
     return real_ip
 
 
