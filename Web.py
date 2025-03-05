@@ -6,6 +6,17 @@ from google.oauth2 import service_account
 import pandas as pd
 import io
 
+# Function to get the real user's IP from the request headers
+def get_real_user_ip():
+    # The user's IP can be found in the 'X-Forwarded-For' header (which is set by the proxy)
+    headers = requests.get('https://httpbin.org/ip').json()
+    user_ip = headers['origin']  # This is the IP of the client making the request
+    return user_ip
+
+# Store the real user's IP in session state
+if 'user_ip' not in st.session_state:
+    st.session_state['user_ip'] = get_real_user_ip()
+
 st.set_page_config(page_title="My App")
 
 hide_st_style = """
@@ -24,17 +35,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Function to get the user's public IP
-def get_user_ip():
-    public_ip = requests.get("https://api64.ipify.org").text  # Fetching the public IP via ipify
-    return public_ip
-
-# Use session state to store the user's IP
-if 'user_ip' not in st.session_state:
-    st.session_state['user_ip'] = get_user_ip()
-
-# Show the user's IP in the app
-st.markdown(f"User's Public IP Address: {st.session_state['user_ip']}")
+# Display the user's real IP
+st.markdown(f"User's Real Public IP Address: {st.session_state['user_ip']}")
 
 # PDF URL to display
 pdf_url = "https://drive.google.com/file/d/1sBPt9-h33f0u1QzyZ5bCt1O8cVqpxiYV/preview"
