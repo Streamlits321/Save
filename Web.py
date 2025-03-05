@@ -28,7 +28,7 @@ def get_ip():
 
 
 def run_flask():
-    app.run(port=5000)
+    app.run(port=5001)  # Change the port to 5001 (or any other unused port)
 
 
 # Run Flask in a separate thread
