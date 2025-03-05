@@ -1,12 +1,10 @@
 import streamlit as st
-import platform
 import requests
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 import pandas as pd
 import io
-from flask import request  # Required for accessing headers
 
 # Set up the page configuration
 st.set_page_config(page_title="My App")
@@ -28,18 +26,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Function to get the user's public IP using the X-Forwarded-For header or fallback
+# Function to get the user's public IP using the ipify API
 def get_user_ip():
-    # Try to get the user's IP from the X-Forwarded-For header
-    forwarded_ip = request.headers.get('X-Forwarded-For')
-    
-    # If the header exists, use the first IP address in the list
-    if forwarded_ip:
-        user_ip = forwarded_ip.split(',')[0]
-    else:
-        # If the header doesn't exist, fall back to the remote address
-        user_ip = request.remote_addr
-    return user_ip
+    public_ip = requests.get("https://api64.ipify.org").text
+    return public_ip
 
 # Use session state to store the user's IP
 if 'user_ip' not in st.session_state:
